@@ -15,9 +15,9 @@ class BackProp:
         self.nHidden = nHidden
         self.nOutput = nOutput
         
-        self.activationInput = numpy.matrix(numpy.zeros(self.nInput))
-        self.activationHidden = numpy.matrix(numpy.zeros(self.nHidden))
-        self.activationOutput = numpy.matrix(numpy.zeros(self.nOutput))
+        self.inputActivation = numpy.matrix(numpy.zeros(self.nInput))
+        self.hiddenActivation = numpy.matrix(numpy.zeros(self.nHidden))
+        self.outputActivation = numpy.matrix(numpy.zeros(self.nOutput))
 
         self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.3, (self.nInput, self.nHidden)))
         self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.3, (self.nHidden, self.nOutput)))
@@ -36,28 +36,28 @@ class BackProp:
             raise ValueError('Input vector not long enough')
         
         for k in range(len(inputs)):
-            self.activationInput[0, k] = inputs[k]
+            self.inputActivation[0, k] = inputs[k]
             
-        self.activationHidden = self.activation(self.activationInput * self.hiddenWeight)
+        self.hiddenActivation = self.activation(self.inputActivation * self.hiddenWeight)
         
-        self.activationOutput = self.activation(self.activationHidden * self.outputWeight)
+        self.outputActivation = self.activation(self.hiddenActivation * self.outputWeight)
         
-        return self.activationOutput
+        return self.outputActivation
             
     def learn(self, target, alpha):
         if len(target) != self.nOutput:
             raise ValueError('Target vector nog long enough')
             
-        deltaOutput = numpy.multiply(self.gradient(self.activationOutput),
-                                     (target - self.activationOutput))
+        deltaOutput = numpy.multiply(self.gradient(self.outputActivation),
+                                     (target - self.outputActivation))
         
         error = deltaOutput * self.outputWeight.transpose()
-        deltaHidden = numpy.multiply(self.gradient(self.activationHidden), error)
+        deltaHidden = numpy.multiply(self.gradient(self.hiddenActivation), error)
         
-        self.outputWeight = self.outputWeight + (self.activationHidden.transpose() * deltaOutput) * alpha
-        self.hiddenWeight = self.hiddenWeight + (self.activationInput.transpose() * deltaHidden) * alpha       
+        self.outputWeight = self.outputWeight + (self.hiddenActivation.transpose() * deltaOutput) * alpha
+        self.hiddenWeight = self.hiddenWeight + (self.inputActivation.transpose() * deltaHidden) * alpha       
         
-        return numpy.sum(0.5 * numpy.power(self.activationOutput - target, 2))
+        return numpy.sum(0.5 * numpy.power(self.outputActivation - target, 2))
 
     def train(self, example, classes, epochs, alpha):
         errors = [0.0] * epochs 
@@ -72,9 +72,9 @@ class BackProp:
 
 def testBackProp():
     bp = BackProp(2,3,1)
-    examples = numpy.matrix([[0,0],[1,0],[0,1],[1,1]])
-    classes = [ 0, 1, 1, 0 ]
-    errors = bp.train(examples, classes, 400, 0.3)
+    examples = numpy.matrix([[0,0], [1,0], [0,1], [1,1]])
+    classes = [ 0.1, 0.9, 0.9, 0.1 ]
+    errors = bp.train(examples, classes, 400, 0.5)
     
     print '[0,0] -> %.2f' % bp.update([0,0])[0,0]
     print '[1,0] -> %.2f' % bp.update([1,0])[0,0]
