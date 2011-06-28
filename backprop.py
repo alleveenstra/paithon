@@ -2,7 +2,7 @@
 """
 Created on Mon Jun 27 20:41:39 2011
 
-@author: -
+@author: alle.veenstra@gmail.com
 """
 
 import numpy
@@ -15,17 +15,20 @@ class BackProp:
         self.nHidden = nHidden
         self.nOutput = nOutput
         
-        self.activationInput = [1.0] * self.nInput
-        self.activationHidden = [1.0] * self.nHidden
-        self.activationOutput = [1.0] * self.nOutput
+        self.activationInput = numpy.matrix(numpy.zeros(self.nInput))
+        self.activationHidden = numpy.matrix(numpy.zeros(self.nHidden))
+        self.activationOutput = numpy.matrix(numpy.zeros(self.nOutput))
 
         self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.3, (self.nInput, self.nHidden)))
         self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.3, (self.nHidden, self.nOutput)))
     
+        self.activation = numpy.vectorize(self.activationFunction)
+        self.gradient = numpy.vectorize(self.gradientFunction)
+    
     def activationFunction(self, value):
         return math.tanh(value)        
         
-    def derivedActivationFunction(self, value):
+    def gradientFunction(self, value):
         return 1.0 - value ** 2
         
     def update(self, inputs):
@@ -33,19 +36,11 @@ class BackProp:
             raise ValueError('Input vector not long enough')
         
         for k in range(len(inputs)):
-            self.activationInput[k] = inputs[k]
+            self.activationInput[0, k] = inputs[k]
             
-        for j in range(self.nHidden):
-            activationSum = 0.0
-            for k in range(self.nInput):
-                activationSum += self.activationInput[k] * self.hiddenWeight[k,j]
-            self.activationHidden[j] = self.activationFunction(activationSum)
+        self.activationHidden = self.activation(self.activationInput * self.hiddenWeight)
         
-        for i in range(self.nOutput):
-            activationSum = 0.0
-            for j in range(self.nHidden):
-                activationSum += self.activationHidden[j] * self.outputWeight[j,i]
-            self.activationOutput[i] = self.activationFunction(activationSum)
+        self.activationOutput = self.activation(self.activationHidden * self.outputWeight)
         
         return self.activationOutput
             
@@ -53,30 +48,16 @@ class BackProp:
         if len(target) != self.nOutput:
             raise ValueError('Target vector nog long enough')
             
-        deltaOutput = [0.0] * self.nOutput
-        for i in range(self.nOutput):
-            error = target[i] - self.activationOutput[i]
-            deltaOutput[i] = self.derivedActivationFunction(self.activationOutput[i]) * error
+        deltaOutput = numpy.multiply(self.gradient(self.activationOutput),
+                                     (target - self.activationOutput))
         
-        deltaHidden = [0.0] * self.nHidden
-        for j in range(self.nHidden):
-            error = 0.0
-            for i in range(self.nOutput):
-                error += deltaOutput[i] * self.outputWeight[j,i]
-            deltaHidden[j] = self.derivedActivationFunction(self.activationHidden[j]) * error
+        error = deltaOutput * self.outputWeight.transpose()
+        deltaHidden = numpy.multiply(self.gradient(self.activationHidden), error)
         
-        for i in range(self.nOutput):
-            for j in range(self.nHidden):
-                self.outputWeight[j,i] += deltaOutput[i] * self.activationHidden[j] * alpha
+        self.outputWeight = self.outputWeight + (self.activationHidden.transpose() * deltaOutput) * alpha
+        self.hiddenWeight = self.hiddenWeight + (self.activationInput.transpose() * deltaHidden) * alpha       
         
-        for k in range(self.nInput):
-            for j in range(self.nHidden):
-                self.hiddenWeight[k,j] += deltaHidden[j]  * self.activationInput[k] * alpha
-        
-        error = 0.0
-        for i in range(self.nOutput):
-            error += 0.5 * (self.activationOutput[i] - target[i]) ** 2
-        return error
+        return numpy.sum(0.5 * numpy.power(self.activationOutput - target, 2))
 
     def train(self, example, classes, epochs, alpha):
         errors = [0.0] * epochs 
@@ -90,18 +71,28 @@ class BackProp:
         return errors
 
 def testBackProp():
-    bp = BackProp(2,2,1)
+    bp = BackProp(2,3,1)
     examples = numpy.matrix([[0,0],[1,0],[0,1],[1,1]])
     classes = [ 0, 1, 1, 0 ]
     errors = bp.train(examples, classes, 400, 0.3)
-    x = numpy.divide(range(-100,100), 100.0)
-    y = [0.0] * len(x)
-    for i in range(len(y)):
-       y[i] = bp.activationFunction(x[i])
-    plt.plot(x,y)
-    plt.show()
     
+    print '[0,0] -> %.2f' % bp.update([0,0])[0,0]
+    print '[1,0] -> %.2f' % bp.update([1,0])[0,0]
+    print '[0,1] -> %.2f' % bp.update([0,1])[0,0]
+    print '[1,1] -> %.2f' % bp.update([1,1])[0,0]
+
     plt.plot(range(len(errors)), errors)
     plt.show()
+        
+
+#===============================================================================
+#     x = numpy.divide(range(-100,100), 100.0)
+#     y = [0.0] * len(x)
+#     for i in range(len(y)):
+#        y[i] = bp.activationFunction(x[i])
+#     plt.plot(x,y)
+#     plt.show()
+#===============================================================================
+        
     
 testBackProp()
