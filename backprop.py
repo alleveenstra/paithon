@@ -41,9 +41,9 @@ class BackProp:
         for k in range(len(inputs)):
             self.inputActivation[0, k] = inputs[k]
             
-        self.hiddenActivation = self.activation(self.inputActivation * self.hiddenWeight)
+        self.hiddenActivation = self.activation(self.inputActivation * self.hiddenWeight + self.hiddenBias)
 
-        self.outputActivation = self.activation(self.hiddenActivation * self.outputWeight)
+        self.outputActivation = self.activation(self.hiddenActivation * self.outputWeight + self.outputBias)
 
         return self.outputActivation
             
