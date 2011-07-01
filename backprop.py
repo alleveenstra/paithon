@@ -15,12 +15,15 @@ class BackProp:
         self.nHidden = nHidden
         self.nOutput = nOutput
         
-        self.inputActivation = numpy.matrix(numpy.zeros(self.nInput))
-        self.hiddenActivation = numpy.matrix(numpy.zeros(self.nHidden))
-        self.outputActivation = numpy.matrix(numpy.zeros(self.nOutput))
+        self.inputActivation = numpy.matrix(numpy.ones(self.nInput))
+        self.hiddenActivation = numpy.matrix(numpy.ones(self.nHidden))
+        self.outputActivation = numpy.matrix(numpy.ones(self.nOutput))
 
-        self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.3, (self.nInput, self.nHidden)))
-        self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.3, (self.nHidden, self.nOutput)))
+        self.hiddenBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nHidden))
+        self.outputBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nOutput))
+
+        self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nInput, self.nHidden)))
+        self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nHidden, self.nOutput)))
     
         self.activation = numpy.vectorize(self.activationFunction)
         self.gradient = numpy.vectorize(self.gradientFunction)
@@ -29,7 +32,7 @@ class BackProp:
         return math.tanh(value)        
         
     def gradientFunction(self, value):
-        return 1.0 - value ** 2
+        return 1.0 - math.tanh(value) ** 2
         
     def update(self, inputs):
         if len(inputs) != self.nInput - 1:
@@ -39,18 +42,19 @@ class BackProp:
             self.inputActivation[0, k] = inputs[k]
             
         self.hiddenActivation = self.activation(self.inputActivation * self.hiddenWeight)
-        
+
         self.outputActivation = self.activation(self.hiddenActivation * self.outputWeight)
-        
+
         return self.outputActivation
             
     def learn(self, target, alpha):
         if len(target) != self.nOutput:
             raise ValueError('Target vector nog long enough')
             
-        deltaOutput = numpy.multiply(self.gradient(self.outputActivation),
-                                     (target - self.outputActivation))
-        
+        error = (target - self.outputActivation)
+
+        deltaOutput = numpy.multiply(self.gradient(self.outputActivation), error)
+
         error = deltaOutput * self.outputWeight.transpose()
         deltaHidden = numpy.multiply(self.gradient(self.hiddenActivation), error)
         
@@ -71,27 +75,24 @@ class BackProp:
         return errors
 
 def testBackProp():
-    bp = BackProp(2,3,1)
+    bp = BackProp(2, 4, 1)
     examples = numpy.matrix([[0,0], [1,0], [0,1], [1,1]])
-    classes = [ 0.1, 0.9, 0.9, 0.1 ]
-    errors = bp.train(examples, classes, 400, 0.5)
+    classes = [ 1, -1, -1, 1 ]
+    errors = bp.train(examples, classes, 1000, 0.08)
     
     print '[0,0] -> %.2f' % bp.update([0,0])[0,0]
     print '[1,0] -> %.2f' % bp.update([1,0])[0,0]
     print '[0,1] -> %.2f' % bp.update([0,1])[0,0]
     print '[1,1] -> %.2f' % bp.update([1,1])[0,0]
 
-    plt.plot(range(len(errors)), errors)
-    plt.show()
-        
 
 #===============================================================================
-#     x = numpy.divide(range(-100,100), 100.0)
-#     y = [0.0] * len(x)
-#     for i in range(len(y)):
-#        y[i] = bp.activationFunction(x[i])
-#     plt.plot(x,y)
-#     plt.show()
+    plt.plot(range(len(errors)), errors)
+    plt.show()
+#===============================================================================
+#    x = numpy.divide(range(-200,200), 100.0)
+#    plt.plot(x, bp.gradient(x))
+#    plt.show()
 #===============================================================================
         
     
