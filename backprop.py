@@ -9,6 +9,22 @@ import numpy
 import math
 import pylab
 import matplotlib.pyplot as plt
+from ctypes import ARRAY
+
+class SaltPepperNoiser(object):
+    def __init__(self):
+        self.amount = 0.3
+        self.salt = 0.5
+        self.pepper = -0.5
+        
+    def addNoise(self, input):
+        output = numpy.array(input)
+        half = len(output) * self.amount / 2.0
+        salt = numpy.random.randint(0, len(output) - 1, half)
+        pepper = numpy.random.randint(0, len(output) - 1, half)
+        output[salt] = self.salt
+        output[pepper] = self.pepper
+        return output
 
 class BackProp:
     def __init__(self, nInput, nHidden, nOutput, eta):
@@ -32,7 +48,9 @@ class BackProp:
 
         self.eta = eta
         self.eta_bias = 0.1
-        self.eta_L1 = 0.1
+        self.eta_L1 = 0.005
+        
+        self.noiser = False
     
     def activationFunction(self, value):
         return math.tanh(value)        
@@ -52,6 +70,10 @@ class BackProp:
         self.outputActivation = self.activation(self.hiddenActivation * self.outputWeight + self.outputBias)
 
         return self.outputActivation
+        
+    def runHidden(self, input):
+        self.outputActivation = self.activation(input * self.outputWeight + self.outputBias)
+        return self.outputActivation
             
     def learn(self, target):
         if len(target) != self.nOutput:
@@ -60,15 +82,15 @@ class BackProp:
         error = (target - self.outputActivation)
         deltaOutput = numpy.multiply(self.gradient(self.outputActivation), error)
 
-        regularization_L1 = numpy.sum(numpy.abs(self.hiddenActivation)) * self.eta_L1
-        error = (deltaOutput * self.outputWeight.transpose()) + regularization_L1
+        error = (deltaOutput * self.outputWeight.transpose())
         deltaHidden = numpy.multiply(self.gradient(self.hiddenActivation), error)
         
-        self.outputBias = self.outputBias + deltaOutput * self.eta_bias
-        self.hiddenBias = self.hiddenBias + deltaHidden * self.eta_bias
+        self.outputBias += deltaOutput * self.eta_bias
+        self.hiddenBias += deltaHidden * self.eta_bias
         
-        self.outputWeight = self.outputWeight + (self.hiddenActivation.transpose() * deltaOutput) * self.eta
-        self.hiddenWeight = self.hiddenWeight + (self.inputActivation.transpose() * deltaHidden) * self.eta       
+        L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1 
+        self.hiddenWeight += (self.inputActivation.transpose() * (deltaHidden + L1)) * self.eta               
+        self.outputWeight += (self.hiddenActivation.transpose() * deltaOutput) * self.eta
         
         return numpy.sum(0.5 * numpy.power(self.outputActivation - target, 2))
 
@@ -78,6 +100,8 @@ class BackProp:
             error = 0
             for cls in range(len(classes)):
                 target = example[cls, :].tolist()[0]
+                if self.noiser:
+                    target = self.noiser.addNoise(target)
                 self.update(target)
                 error += self.learn(classes[cls].tolist()[0])
             errors[epoch] = math.sqrt(error / len(classes))
@@ -98,15 +122,19 @@ class BackProp:
         return False
 
 def testSimpleXor():
-    bp = BackProp(2, 5, 1, 0.1)
+    bp = BackProp(2, 4, 1, 0.1)
     examples = numpy.matrix([[0, 0], [1, 0], [0, 1], [1, 1]])
     classes = numpy.matrix([ [1], [-1], [-1], [1] ])
     errors = bp.train(examples, classes, 5000)
     
     print '[0,0] -> %.2f' % bp.update([0, 0])[0, 0]
+    print bp.hiddenActivation    
     print '[1,0] -> %.2f' % bp.update([1, 0])[0, 0]
+    print bp.hiddenActivation
     print '[0,1] -> %.2f' % bp.update([0, 1])[0, 0]
+    print bp.hiddenActivation
     print '[1,1] -> %.2f' % bp.update([1, 1])[0, 0]
+    print bp.hiddenActivation
     
     plt.plot(range(len(errors)), errors)
     plt.show()
@@ -141,6 +169,8 @@ def showImages(before, after, n_images = 1, n_image = 1):
 
 def testImage():
     bp = BackProp(64 * 64, 4, 64 * 64, 0.08)
+    bp.noiser = SaltPepperNoiser()
+    
     c1e1 = readImage('class1_example1.pgm')
     c1e2 = readImage('class1_example2.pgm')
     c2e1 = readImage('class2_example1.pgm')
@@ -150,21 +180,18 @@ def testImage():
     c4e1 = readImage('class4_example1.pgm')
     c4e2 = readImage('class4_example2.pgm')
     examples = numpy.matrix([c1e1, c1e2, c2e1, c2e2, c3e1, c3e2, c4e1, c4e2])
-    classes = numpy.matrix([[-1, -1], [-1, -1], [-1, 1], [-1, 1], [1, -1], [1, -1], [1, 1], [1, 1]])
+    
     errors = bp.train(examples, examples, 400)
-    
-    showImages(c1e1, bp.update(c1e1), 8, 1)
-    showImages(c1e2, bp.update(c1e2), 8, 2)
-    showImages(c2e1, bp.update(c2e1), 8, 3)
-    showImages(c2e2, bp.update(c2e2), 8, 4)
-    showImages(c3e1, bp.update(c3e1), 8, 5)
-    showImages(c3e2, bp.update(c3e2), 8, 6)
-    showImages(c4e1, bp.update(c4e1), 8, 7)
-    showImages(c4e2, bp.update(c4e2), 8, 8)
-    
+        
+    index = 1
+    for image in (c1e1, c1e2, c2e1, c2e2, c3e1, c3e2, c4e1, c4e2):
+        image = bp.noiser.addNoise(image)
+        showImages(image, bp.update(image), 8, index)
+        index += 1
+ 
     plt.figure(2)
     plt.plot(range(len(errors)), errors)
     plt.show()
     
 testImage()
-#estSimpleXor()
+#testSimpleXor()
