@@ -9,13 +9,13 @@ import numpy
 import math
 import pylab
 import matplotlib.pyplot as plt
-from ctypes import ARRAY
 
 class SaltPepperNoiser(object):
-    def __init__(self):
-        self.amount = 0.3
-        self.salt = 0.5
-        self.pepper = -0.5
+    
+    def __init__(self, amount = 0.3, salt = 0.5, pepper = -0.5):
+        self.amount = amount
+        self.salt = salt
+        self.pepper = pepper
         
     def addNoise(self, input):
         output = numpy.array(input)
@@ -25,32 +25,44 @@ class SaltPepperNoiser(object):
         output[salt] = self.salt
         output[pepper] = self.pepper
         return output
+    
+class DefaultNetworkEvaluator(object):
+    
+    def __init__(self, perceptron):
+        self.perceptron = perceptron
+    
+    def evaluateNetwork(self, inputs):
+        perceptron = self.perceptron
+        perceptron.hiddenActivation = perceptron.activation(perceptron.inputActivation * perceptron.hiddenWeight + perceptron.hiddenBias)
+        perceptron.outputActivation = perceptron.activation(perceptron.hiddenActivation * perceptron.outputWeight + perceptron.outputBias)
+        return perceptron.outputActivation
 
-class BackProp:
-    def __init__(self, nInput, nHidden, nOutput, eta):
+class MultiLayerPerceptron:
+    def __init__(self, nInput, nHidden, nOutput, eta = 0.1, eta_bias = 0.1, eta_L1 = 0.005):
         
         self.nInput = nInput + 1
         self.nHidden = nHidden
         self.nOutput = nOutput
         
-        self.inputActivation = numpy.matrix(0 - numpy.ones(self.nInput))
-        self.hiddenActivation = numpy.matrix(numpy.ones(self.nHidden))
-        self.outputActivation = numpy.matrix(numpy.ones(self.nOutput))
+        self.inputActivation = numpy.matrix(0 - numpy.ones(self.nInput)).astype(numpy.float32)
+        self.hiddenActivation = numpy.matrix(numpy.ones(self.nHidden)).astype(numpy.float32)
+        self.outputActivation = numpy.matrix(numpy.ones(self.nOutput)).astype(numpy.float32)
 
-        self.hiddenBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nHidden))
-        self.outputBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nOutput))
+        self.hiddenBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nHidden)).astype(numpy.float32)
+        self.outputBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nOutput)).astype(numpy.float32)
 
-        self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nInput, self.nHidden)))
-        self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nHidden, self.nOutput)))
+        self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nInput, self.nHidden))).astype(numpy.float32)
+        self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nHidden, self.nOutput))).astype(numpy.float32)
 
         self.activation = numpy.vectorize(self.activationFunction)
         self.gradient = numpy.vectorize(self.gradientFunction)
 
         self.eta = eta
-        self.eta_bias = 0.1
-        self.eta_L1 = 0.005
+        self.eta_bias = eta_bias
+        self.eta_L1 = eta_L1
         
         self.noiser = False
+        self.evaluationFunction = DefaultNetworkEvaluator(self)
     
     def activationFunction(self, value):
         return math.tanh(value)        
@@ -58,18 +70,12 @@ class BackProp:
     def gradientFunction(self, value):
         return 1.0 - math.tanh(value) ** 2
         
-    def update(self, inputs):
+    def evaluateNetwork(self, inputs):
         if len(inputs) != self.nInput - 1:
             raise ValueError('Input vector not long enough')
-        
         for k in range(len(inputs)):
             self.inputActivation[0, k] = inputs[k]
-            
-        self.hiddenActivation = self.activation(self.inputActivation * self.hiddenWeight + self.hiddenBias)
-
-        self.outputActivation = self.activation(self.hiddenActivation * self.outputWeight + self.outputBias)
-
-        return self.outputActivation
+        return self.evaluationFunction.evaluateNetwork(inputs)
         
     def runHidden(self, input):
         self.outputActivation = self.activation(input * self.outputWeight + self.outputBias)
@@ -102,7 +108,7 @@ class BackProp:
                 target = example[cls, :].tolist()[0]
                 if self.noiser:
                     target = self.noiser.addNoise(target)
-                self.update(target)
+                self.evaluateNetwork(target)
                 error += self.learn(classes[cls].tolist()[0])
             errors[epoch] = math.sqrt(error / len(classes))
             if self.stoppingCriteria(errors):
@@ -120,33 +126,6 @@ class BackProp:
         else:
             return False
         return False
-
-def testSimpleXor():
-    bp = BackProp(2, 4, 1, 0.1)
-    examples = numpy.matrix([[0, 0], [1, 0], [0, 1], [1, 1]])
-    classes = numpy.matrix([ [1], [-1], [-1], [1] ])
-    errors = bp.train(examples, classes, 5000)
-    
-    print '[0,0] -> %.2f' % bp.update([0, 0])[0, 0]
-    print bp.hiddenActivation    
-    print '[1,0] -> %.2f' % bp.update([1, 0])[0, 0]
-    print bp.hiddenActivation
-    print '[0,1] -> %.2f' % bp.update([0, 1])[0, 0]
-    print bp.hiddenActivation
-    print '[1,1] -> %.2f' % bp.update([1, 1])[0, 0]
-    print bp.hiddenActivation
-    
-    plt.plot(range(len(errors)), errors)
-    plt.show()
-
-#===============================================================================
-    #plt.plot(range(len(errors)), errors)
-    #plt.show()
-#===============================================================================
-#    x = numpy.divide(range(-200,200), 100.0)
-#    plt.plot(x, bp.gradient(x))
-#    plt.show()
-#===============================================================================
 
 def readImage(filename, dist_width = 0.3):
     image = numpy.reshape(pylab.imread(filename), 64 * 64)
@@ -168,7 +147,7 @@ def showImages(before, after, n_images = 1, n_image = 1):
         plt.show()
 
 def testImage():
-    bp = BackProp(64 * 64, 4, 64 * 64, 0.08)
+    bp = MultiLayerPerceptron(64 * 64, 4, 64 * 64, 0.08)
     bp.noiser = SaltPepperNoiser()
     
     c1e1 = readImage('class1_example1.pgm')
@@ -186,12 +165,12 @@ def testImage():
     index = 1
     for image in (c1e1, c1e2, c2e1, c2e2, c3e1, c3e2, c4e1, c4e2):
         image = bp.noiser.addNoise(image)
-        showImages(image, bp.update(image), 8, index)
+        showImages(image, bp.evaluateNetwork(image), 8, index)
         index += 1
  
     plt.figure(2)
     plt.plot(range(len(errors)), errors)
     plt.show()
     
-testImage()
+#testImage()
 #testSimpleXor()
