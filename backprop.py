@@ -38,7 +38,7 @@ class DefaultNetworkEvaluator(object):
         return perceptron.outputActivation
 
 class MultiLayerPerceptron:
-    def __init__(self, nInput, nHidden, nOutput, eta = 0.1, eta_bias = 0.1, eta_L1 = 0.005):
+    def __init__(self, nInput, nHidden, nOutput, eta = 0.08, eta_bias = 0.04, eta_L1 = 0.005):
         
         self.nInput = nInput + 1
         self.nHidden = nHidden
