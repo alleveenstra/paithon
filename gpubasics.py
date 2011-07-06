@@ -1,7 +1,8 @@
 '''
-Created on Jul 4, 2011
+MLP OpenCL backend
 
-@author: alleveenstra
+@author: alle.veenstra@gmail.com
+@website: https://github.com/alleveenstra/paithon
 '''
 
 import pyopencl as cl
@@ -97,23 +98,21 @@ def testImage():
     bp.noiser = backprop.SaltPepperNoiser()
     bp.evaluationFunction = OpenCLNetworkEvaluator(bp)
     
-    #print bp.hiddenWeight[0:2, :]
-    #print "--------"
+    c1 = readImage('lfwcrop_grey/faces/Alejandro_Toledo_0003.pgm')
+    c2 = readImage('lfwcrop_grey/faces/Arminio_Fraga_0005.pgm')
+    c3 = readImage('lfwcrop_grey/faces/Bill_Graham_0008.pgm')
+    c4 = readImage('lfwcrop_grey/faces/Costas_Simitis_0006.pgm')
+    c5 = readImage('lfwcrop_grey/faces/Dennis_Kucinich_0004.pgm')
+    c6 = readImage('lfwcrop_grey/faces/Ernie_Grunfeld_0001.pgm')
+    c7 = readImage('lfwcrop_grey/faces/Harry_Schmidt_0001.pgm')
+    c8 = readImage('lfwcrop_grey/faces/James_Kelly_0004.pgm')
 
-    c1e1 = readImage('class1_example1.pgm')
-    c1e2 = readImage('class1_example2.pgm')
-    c2e1 = readImage('class2_example1.pgm')
-    c2e2 = readImage('class2_example2.pgm')
-    c3e1 = readImage('class3_example1.pgm')
-    c3e2 = readImage('class3_example2.pgm')
-    c4e1 = readImage('class4_example1.pgm')
-    c4e2 = readImage('class4_example2.pgm')
-    examples = numpy.matrix([c1e1, c1e2, c2e1, c2e2, c3e1, c3e2, c4e1, c4e2])
+    examples = numpy.matrix([c1, c2, c3, c4, c5, c6, c7, c8])
     
     errors = bp.train(examples, examples, 100)
         
     index = 1
-    for image in (c1e1, c1e2, c2e1, c2e2, c3e1, c3e2, c4e1, c4e2):
+    for image in (c1, c2, c3, c4, c5, c6, c7, c8):
         image = bp.noiser.addNoise(image)
         showImages(image, bp.evaluateNetwork(image), 8, index)
         index += 1
