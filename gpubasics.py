@@ -20,7 +20,7 @@ prg = cl.Program(ctx, """
     __kernel void evaluate( int inputSize,
                             int outputSize, 
                             __global const float *input, 
-                            __global const float *weights,
+                            __global const float *weight,
                             __global const float *bias,
                             __global float       *output)
     {
@@ -28,7 +28,7 @@ prg = cl.Program(ctx, """
       int i;
       float sigma = 0;
       for (i = 0; i < inputSize; i++) {
-        sigma = sigma + weights[gid + outputSize * i] * input[i];
+        sigma = sigma + weight[gid + outputSize * i] * input[i];
       }
       output[gid] = tanh(sigma + bias[gid]);
     }
@@ -42,28 +42,20 @@ class OpenCLNetworkEvaluator(backprop.DefaultNetworkEvaluator):
     def evaluateNetwork(self, inputs):
         perceptron = self.perceptron
         
-        i_size = numpy.int32(perceptron.inputActivation.size)
-        o_size = numpy.int32(perceptron.hiddenActivation.size)
-        
-        ia_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = perceptron.inputActivation)
-        hw_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = perceptron.hiddenWeight)
-        hb_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = perceptron.hiddenBias)
-        ha_buf = cl.Buffer(ctx, mf.WRITE_ONLY, perceptron.hiddenActivation.nbytes)
-        prg.evaluate(queue, perceptron.hiddenActivation.transpose().shape, None, i_size, o_size, ia_buf, hw_buf, hb_buf, ha_buf)
-        cl.enqueue_read_buffer(queue, ha_buf, perceptron.hiddenActivation).wait()
-        
-        i_size = numpy.int32(perceptron.hiddenActivation.size)
-        o_size = numpy.int32(perceptron.outputActivation.size)
-        
-        ha_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = perceptron.hiddenActivation)
-        ow_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = perceptron.outputWeight)
-        ob_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = perceptron.outputBias)
-        oa_buf = cl.Buffer(ctx, mf.WRITE_ONLY, perceptron.outputActivation.nbytes)
-        prg.evaluate(queue, perceptron.outputActivation.transpose().shape, None, i_size, o_size, ha_buf, ow_buf, ob_buf, oa_buf)
-        cl.enqueue_read_buffer(queue, oa_buf, perceptron.outputActivation).wait()
-
+        self.evaluateOnOpenCL(perceptron.inputActivation, perceptron.hiddenWeight, perceptron.hiddenBias, perceptron.hiddenActivation)
+        self.evaluateOnOpenCL(perceptron.hiddenActivation, perceptron.outputWeight, perceptron.outputBias, perceptron.outputActivation)
         return perceptron.outputActivation
 
+    def evaluateOnOpenCL(self, input, weight,  bias, output):
+        input_size = numpy.int32(input.size)
+        output_size = numpy.int32(output.size)
+        
+        input_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = input)
+        weight_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = weight)
+        bias_buf = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = bias)
+        output_buf = cl.Buffer(ctx, mf.WRITE_ONLY, output.nbytes)
+        prg.evaluate(queue, output.transpose().shape, None, input_size, output_size, input_buf, weight_buf, bias_buf, output_buf)
+        cl.enqueue_read_buffer(queue, output_buf, output).wait()
 
 def testSimpleXor():
     bp = backprop.MultiLayerPerceptron(2, 4, 1, 0.08, 0, 0)
