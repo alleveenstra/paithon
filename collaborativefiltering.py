@@ -11,11 +11,13 @@ import matplotlib
 Nu = 100
 Nm = 10
 f = 4
-lmb = 0.4
+lmb = 0.05
 
 R = numpy.random.uniform(1, 5, (Nu, Nm)).astype(numpy.float32)
 R *= numpy.random.uniform(0, 1.1, (Nu, Nm)).astype(numpy.int8)
 R = numpy.round(R)
+
+R[1, 1] = 3
 
 U = numpy.matrix(numpy.random.normal(0, 0.3, (Nu, f)).astype(numpy.float32))
 M = numpy.matrix(numpy.random.normal(0, 0.3, (Nm, f)).astype(numpy.float32))
@@ -28,7 +30,8 @@ def update_U():
         if (Mu.size > 0):
             vector = numpy.dot(R[u, movies], Mu)
             matrix = vector.transpose() * vector + numpy.multiply(U[u], eyeI)
-            U[u, :] = numpy.linalg.solve(matrix, vector.tolist()[0])
+            solution = numpy.linalg.lstsq(matrix, vector.tolist()[0])
+            U[u, :] = solution[0]
 
 def update_M():
     for m in range(M.shape[0]):
@@ -46,3 +49,5 @@ for epoch in range(1000):
     update_U() 
         
 print 'done'
+
+print numpy.dot(U[1], M[1].transpose())
