@@ -7,62 +7,52 @@ Alternating least squares approach
 @author alle.veenstra@gmail.com
 '''
 
+# -*- coding: utf-8 -*-
+'''
+Collaborative filtering
+
+Alternating least squares approach
+
+@author alle.veenstra@gmail.com
+'''
+
 import numpy
 import matplotlib
 
-Nu = 100
-Nm = 10
-f = 4
-lmb = 0.5
+m = 4
+n = 3
+p = 2
 
-R = numpy.random.uniform(1, 5, (Nu, Nm)).astype(numpy.float32)
-R *= numpy.random.uniform(0, 1.1, (Nu, Nm)).astype(numpy.int8)
-R = numpy.round(R) / 5.
+X = numpy.random.uniform(1, 5, (m, n)).astype(numpy.float32)
+for i in range(m):
+    X[i, :] = i + 1
+    
+A = numpy.matrix(numpy.random.normal(0.5, 0.1, (p, m))).astype(numpy.float32)
+B = numpy.matrix(numpy.random.normal(0.5, 0.1, (p, n))).astype(numpy.float32)
 
-R[1, 1] = 1.0
-R[2, 2] = 0.8
-R[3, 3] = 0.6
-R[4, 4] = 0.4
-R[5, 5] = 0.2
+def update_A(X, B):
+    A = X * B.I
+    A[A < 0] = 0
+    return A.T
 
-U = numpy.matrix(numpy.random.normal(0, 0.3, (Nu, f)).astype(numpy.float32))
-M = numpy.matrix(numpy.random.normal(0, 0.3, (Nm, f)).astype(numpy.float32))
-
-def update_U():
-    for u in range(U.shape[0]):
-        eyeI = numpy.eye(f) * lmb 
-        movies = R[u, :] != 0
-        Mu = M[movies, :]
-        if (Mu.size > 0):
-            vector = numpy.dot(R[u, movies], Mu).transpose()
-            matrix = vector * vector.transpose() + numpy.multiply(U[u], eyeI)
-            solution = numpy.linalg.lstsq(matrix, vector)
-            sol = solution[0].transpose()
-            #sol[sol < 0] = 0
-            U[u, :] = sol
-
-def update_M():
-    for m in range(M.shape[0]):
-        eyeI = numpy.eye(f) * lmb
-        users = R[:, m] != 0
-        Um = U[users, :]
-        if (Um.size > 0):
-            vector = numpy.matrix(numpy.dot(R[users, m], Um)).transpose()
-            matrix = vector * vector.transpose() + numpy.multiply(M[m], eyeI)
-            solution = numpy.linalg.lstsq(matrix, vector)
-            sol = solution[0].transpose()
-            #sol[sol < 0] = 0
-            M[m, :] = sol
-            
-for epoch in range(1):
-    update_M()
-    update_U() 
+def update_B(X, A):
+    lamI = numpy.matrix(numpy.eye(p)).astype(numpy.float32)
+    Bnew = numpy.matrix(numpy.zeros((p, n))).astype(numpy.float32)
+    for i in range(n):
+        users = X[:, i] > 0
+        Ai = A[:, users]
+        vector = Ai * numpy.matrix(X[users, i]).T
+        matrix = Ai * Ai.T + numpy.multiply(lamI, B[:, i])
+        solution = numpy.linalg.lstsq(matrix, vector)
+        Bnew[:, i] = solution[0]
+    return Bnew
+        
+           
+for epoch in range(1000):
+    A = update_A(X, B)
+    B = update_B(X, A)
+    E = numpy.abs(X - numpy.dot(A.transpose(), B))
+    print numpy.sum(E)
         
 print 'done'
-
-print numpy.dot(U[1], M[1].transpose()) * 5
-print numpy.dot(U[2], M[2].transpose()) * 5
-print numpy.dot(U[3], M[3].transpose()) * 5
-print numpy.dot(U[4], M[4].transpose()) * 5
-print numpy.dot(U[5], M[5].transpose()) * 5
 
