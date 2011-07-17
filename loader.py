@@ -5,11 +5,19 @@
 @author alle.veenstra@gmail.com
 '''
 
+import math
+import itertools
 import numpy
 import matplotlib
 import csv
 import string
 from scipy.sparse import lil_matrix
+
+def getM():
+    return 943
+
+def getN():
+    return 1682
 
 def loadMovies():
     X = lil_matrix((943, 1682))

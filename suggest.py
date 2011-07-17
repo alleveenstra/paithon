@@ -13,7 +13,7 @@ def dictSort(d):
         k[item[0]] = item[1]
     return k
 
-id = 26
+id = 0
 
 pkl_file = open('factorization.pkl', 'rb')
 data = pickle.load(pkl_file)
@@ -34,7 +34,6 @@ for m in range(A.shape[0]):
     other = A[m, :] 
     other /= numpy.linalg.norm(other)
     distance = 1.0 - numpy.inner(movie , other)[0, 0]
-    print numpy.sum(other)
     values[m, 0] = numpy.abs(distance)
     values[m, 1] = m
 

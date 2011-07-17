@@ -39,4 +39,6 @@ for epoch in range(100):
     E = numpy.abs(X - numpy.dot(A, B.transpose()))
     print numpy.sum(E)
         
+
+        
 print 'done'
