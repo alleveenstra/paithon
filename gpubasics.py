@@ -40,14 +40,14 @@ class OpenCLNetworkEvaluator(backprop.DefaultNetworkEvaluator):
     def __init__(self, perceptron):
         self.perceptron = perceptron
     
-    def evaluateNetwork(self, inputs):
+    def evaluateNetwork(self):
         perceptron = self.perceptron
         
         self.evaluateOnOpenCL(perceptron.inputActivation, perceptron.hiddenWeight, perceptron.hiddenBias, perceptron.hiddenActivation)
         self.evaluateOnOpenCL(perceptron.hiddenActivation, perceptron.outputWeight, perceptron.outputBias, perceptron.outputActivation)
         return perceptron.outputActivation
 
-    def evaluateOnOpenCL(self, input, weight,  bias, output):
+    def evaluateOnOpenCL(self, input, weight, bias, output):
         input_size = numpy.int32(input.size)
         output_size = numpy.int32(output.size)
         

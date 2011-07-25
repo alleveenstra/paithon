@@ -7,8 +7,6 @@ Created on Mon Jun 27 20:41:39 2011
 
 import numpy
 import math
-import pylab
-import matplotlib.pyplot as plt
 
 class SaltPepperNoiser(object):
     
@@ -31,7 +29,7 @@ class DefaultNetworkEvaluator(object):
     def __init__(self, perceptron):
         self.perceptron = perceptron
     
-    def evaluateNetwork(self, inputs):
+    def evaluateNetwork(self):
         perceptron = self.perceptron
         perceptron.hiddenActivation = perceptron.activation(perceptron.inputActivation * perceptron.hiddenWeight + perceptron.hiddenBias)
         perceptron.outputActivation = perceptron.activation(perceptron.hiddenActivation * perceptron.outputWeight + perceptron.outputBias)
@@ -53,6 +51,9 @@ class MultiLayerPerceptron:
 
         self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nInput, self.nHidden))).astype(numpy.float32)
         self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nHidden, self.nOutput))).astype(numpy.float32)
+        
+        self.deltaOutput = False
+        self.deltaHidden = False
 
         self.activation = numpy.vectorize(self.activationFunction)
         self.gradient = numpy.vectorize(self.gradientFunction)
@@ -75,7 +76,7 @@ class MultiLayerPerceptron:
             raise ValueError('Input vector not long enough')
         for k in range(len(inputs)):
             self.inputActivation[0, k] = inputs[k]
-        return self.evaluationFunction.evaluateNetwork(inputs)
+        return self.evaluationFunction.evaluateNetwork()
         
     def runHidden(self, input):
         self.outputActivation = self.activation(input * self.outputWeight + self.outputBias)
@@ -86,17 +87,17 @@ class MultiLayerPerceptron:
             raise ValueError('Target vector nog long enough')
             
         error = (target - self.outputActivation)
-        deltaOutput = numpy.multiply(self.gradient(self.outputActivation), error)
+        self.deltaOutput = numpy.multiply(self.gradient(self.outputActivation), error)
 
-        error = (deltaOutput * self.outputWeight.transpose())
-        deltaHidden = numpy.multiply(self.gradient(self.hiddenActivation), error)
+        error = (self.deltaOutput * self.outputWeight.transpose())
+        self.deltaHidden = numpy.multiply(self.gradient(self.hiddenActivation), error)
         
-        self.outputBias += deltaOutput * self.eta_bias
-        self.hiddenBias += deltaHidden * self.eta_bias
+        self.outputBias += self.deltaOutput * self.eta_bias
+        self.hiddenBias += self.deltaHidden * self.eta_bias
         
         L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1 
-        self.hiddenWeight += (self.inputActivation.transpose() * (deltaHidden + L1)) * self.eta               
-        self.outputWeight += (self.hiddenActivation.transpose() * deltaOutput) * self.eta
+        self.hiddenWeight += (self.inputActivation.transpose() * (self.deltaHidden + L1)) * self.eta               
+        self.outputWeight += (self.hiddenActivation.transpose() * self.deltaOutput) * self.eta
         
         return numpy.sum(0.5 * numpy.power(self.outputActivation - target, 2))
 
@@ -126,52 +127,60 @@ class MultiLayerPerceptron:
         else:
             return False
         return False
-
-def readImage(filename, dist_width = 0.3):
-    image = numpy.reshape(pylab.imread(filename), 64 * 64)
-    image = ((image - numpy.mean(image)) / numpy.std(image)) * dist_width
-    return image
     
-def showImages(before, after, n_images = 1, n_image = 1):
-    before = numpy.matrix(numpy.reshape(before, (64, 64)))
-    after = numpy.matrix(numpy.reshape(after, (64, 64)))    
-    if n_image == 1:
-        plt.figure(1)
-    plt.subplot(n_images / 2, 4, 1 + (n_image - 1) * 2)
-    plt.imshow(before, origin = 'lower')
-    plt.gray()
-    plt.subplot(n_images / 2, 4, 1 + (n_image - 1) * 2 + 1)
-    plt.imshow(after, origin = 'lower')
-    plt.gray()
-    if n_images == n_image:
-        plt.show()
-
-def testImage():
-    bp = MultiLayerPerceptron(64 * 64, 4, 64 * 64, 0.08)
-    bp.noiser = SaltPepperNoiser()
-    
-    c1 = readImage('lfwcrop_grey/faces/Alejandro_Toledo_0003.pgm')
-    c2 = readImage('lfwcrop_grey/faces/Arminio_Fraga_0005.pgm')
-    c3 = readImage('lfwcrop_grey/faces/Bill_Graham_0008.pgm')
-    c4 = readImage('lfwcrop_grey/faces/Costas_Simitis_0006.pgm')
-    c5 = readImage('lfwcrop_grey/faces/Dennis_Kucinich_0004.pgm')
-    c6 = readImage('lfwcrop_grey/faces/Ernie_Grunfeld_0001.pgm')
-    c7 = readImage('lfwcrop_grey/faces/Harry_Schmidt_0001.pgm')
-    c8 = readImage('lfwcrop_grey/faces/James_Kelly_0004.pgm')
-
-    examples = numpy.matrix([c1, c2, c3, c4, c5, c6, c7, c8])
-    
-    errors = bp.train(examples, examples, 400)
+    def verifyGradient(self, input, target):
+        epsilon = 0.00001
+        self.evaluateNetwork(input)
+        self.learn(target)
+        savedHiddenWeight = numpy.copy(self.hiddenWeight)
+        savedOutputWeight = numpy.copy(self.outputWeight)
+        for i in range(self.nInput):
+            for j in range(self.nHidden):
+                positive = numpy.copy(self.hiddenWeight)
+                negative = numpy.copy(self.hiddenWeight)
+                   
+                positive[i, j] += epsilon
+                negative[i, j] -= epsilon
+                
+                self.hiddenWeight = positive
+                output = self.evaluateNetwork(input)
+                errorP1 = numpy.sqrt(numpy.sum((output - target) ** 2))
+                
+                self.hiddenWeight = negative
+                output = self.evaluateNetwork(input)
+                errorP2 = numpy.sqrt(numpy.sum((output - target) ** 2))
+                
+                approx = (errorP1 - errorP2) / (epsilon * 2)
+                
+                print 'hidden ', approx - self.deltaHidden[0, j]
+                
+                self.hiddenWeight = savedHiddenWeight
         
-    index = 1
-    for image in (c1, c2, c3, c4, c5, c6, c7, c8):
-        image = bp.noiser.addNoise(image)
-        showImages(image, bp.evaluateNetwork(image), 8, index)
-        index += 1
- 
-    plt.figure(2)
-    plt.plot(range(len(errors)), errors)
-    plt.show()
-    
-testImage()
-#testSimpleXor()
+        for i in range(self.nHidden):
+            for j in range(self.nOutput):
+                positive = numpy.copy(self.outputWeight)
+                negative = numpy.copy(self.outputWeight)
+                   
+                positive[i, j] += epsilon
+                negative[i, j] -= epsilon
+                
+                self.outputWeight = positive
+                output = self.evaluateNetwork(input)
+                errorP1 = 0.5 * (numpy.sum((output - target) ** 2))
+                
+                self.outputWeight = negative
+                output = self.evaluateNetwork(input)
+                errorP2 = 0.5 * (numpy.sum((output - target) ** 2))
+                
+                approx = (errorP1 - errorP2) / (epsilon * 2)
+                
+                print 'output ', approx - self.deltaOutput[0, j]
+                
+                self.outputWeight = savedOutputWeight
+        
+bp = MultiLayerPerceptron(2, 4, 1, 0.1, 0, 0)
+examples = numpy.matrix(numpy.random.uniform(-1, 1, (4, 2))).astype(numpy.float32)
+classes = numpy.matrix(numpy.random.uniform(-1, 1, (4, 1))).astype(numpy.float32)
+errors = bp.train(examples, classes, 1000)
+bp.verifyGradient(examples[0, :].tolist()[0], classes[0, :].tolist()[0])
+print errors[-1]

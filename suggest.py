@@ -13,7 +13,7 @@ def dictSort(d):
         k[item[0]] = item[1]
     return k
 
-id = 0
+id = 26
 
 pkl_file = open('factorization.pkl', 'rb')
 data = pickle.load(pkl_file)
@@ -27,7 +27,7 @@ movie /= numpy.linalg.norm(movie)
 
 print movie.shape
 
-titles = loader.loadTitles()
+titles = loader.MovieLoader().loadTitles()
 
 values = numpy.zeros((A.shape[0], 2))
 for m in range(A.shape[0]):

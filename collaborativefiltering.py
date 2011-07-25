@@ -14,17 +14,17 @@ import matplotlib
 import loader
 import pickle
 import dummyloader
+import loader
 
-loader = dummyloader.DummyLoader(4, 6)
+loader = loader.MovieLoader()
 
-p = 1
+p = 3
 lmba = 0.001
-l2factor = 0.001
-epochs = 1000
+epochs = 20
 
 print 'Loading movies...'
 
-X = loader.loadStatic()
+X = loader.loadMovies()
 m = loader.getM()
 n = loader.getN()
 
