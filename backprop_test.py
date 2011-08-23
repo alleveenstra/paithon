@@ -15,3 +15,6 @@ class BackpropagationTestcase(unittest.TestCase):
         bp = backprop.MultiLayerPerceptron(2, 4, 1, 0.08, 0, 0)
         examples = numpy.matrix([[1]]).astype(numpy.float32)
         classes = numpy.matrix([[1]]).astype(numpy.float32)
+
+if __name__ == '__main__':
+    unittest.main()

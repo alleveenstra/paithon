@@ -87,16 +87,19 @@ class MultiLayerPerceptron:
             raise ValueError('Target vector nog long enough')
             
         error = (target - self.outputActivation)
-        self.deltaOutput = numpy.multiply(self.gradient(self.outputActivation), error)
+        self.gradientOutput = self.gradient(self.outputActivation)
+        self.deltaOutput = numpy.multiply(self.gradientOutput, error)
 
         error = (self.deltaOutput * self.outputWeight.transpose())
-        self.deltaHidden = numpy.multiply(self.gradient(self.hiddenActivation), error)
+        self.gradientHidden = self.gradient(self.hiddenActivation)
+        self.deltaHidden = numpy.multiply(self.gradientHidden, error)
         
         self.outputBias += self.deltaOutput * self.eta_bias
         self.hiddenBias += self.deltaHidden * self.eta_bias
         
-        L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1 
-        self.hiddenWeight += (self.inputActivation.transpose() * (self.deltaHidden + L1)) * self.eta               
+        L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1
+        
+        self.hiddenWeight += (self.inputActivation.transpose() * self.deltaHidden) * self.eta               
         self.outputWeight += (self.hiddenActivation.transpose() * self.deltaOutput) * self.eta
         
         return numpy.sum(0.5 * numpy.power(self.outputActivation - target, 2))
@@ -134,27 +137,27 @@ class MultiLayerPerceptron:
         self.learn(target)
         savedHiddenWeight = numpy.copy(self.hiddenWeight)
         savedOutputWeight = numpy.copy(self.outputWeight)
-        for i in range(self.nInput):
-            for j in range(self.nHidden):
-                positive = numpy.copy(self.hiddenWeight)
-                negative = numpy.copy(self.hiddenWeight)
-                   
-                positive[i, j] += epsilon
-                negative[i, j] -= epsilon
-                
-                self.hiddenWeight = positive
-                output = self.evaluateNetwork(input)
-                errorP1 = numpy.sqrt(numpy.sum((output - target) ** 2))
-                
-                self.hiddenWeight = negative
-                output = self.evaluateNetwork(input)
-                errorP2 = numpy.sqrt(numpy.sum((output - target) ** 2))
-                
-                approx = (errorP1 - errorP2) / (epsilon * 2)
-                
-                print 'hidden ', approx - self.deltaHidden[0, j]
-                
-                self.hiddenWeight = savedHiddenWeight
+        #for i in range(self.nInput):
+        #    for j in range(self.nHidden):
+        #        positive = numpy.copy(self.hiddenWeight)
+        #        negative = numpy.copy(self.hiddenWeight)
+        #           
+        #        positive[i, j] += epsilon
+        #        negative[i, j] -= epsilon
+        #        
+        #        self.hiddenWeight = positive
+        #        output = self.evaluateNetwork(input)
+        #        errorP1 = numpy.sqrt(numpy.sum((output - target) ** 2))
+        #        
+        #        self.hiddenWeight = negative
+        #        output = self.evaluateNetwork(input)
+        #        errorP2 = numpy.sqrt(numpy.sum((output - target) ** 2))
+        #        
+        #        approx = (errorP1 - errorP2) / (epsilon * 2)
+        #        
+        #        print 'hidden ', approx - self.deltaHidden[0, j]
+        #        
+        #        self.hiddenWeight = savedHiddenWeight
         
         for i in range(self.nHidden):
             for j in range(self.nOutput):
@@ -174,7 +177,7 @@ class MultiLayerPerceptron:
                 
                 approx = (errorP1 - errorP2) / (epsilon * 2)
                 
-                print 'output ', approx - self.deltaOutput[0, j]
+                print 'output ', approx, self.deltaOutput[0, j], approx - self.deltaOutput[0, j]
                 
                 self.outputWeight = savedOutputWeight
         
