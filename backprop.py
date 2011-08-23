@@ -23,17 +23,6 @@ class SaltPepperNoiser(object):
         output[salt] = self.salt
         output[pepper] = self.pepper
         return output
-    
-class DefaultNetworkEvaluator(object):
-    
-    def __init__(self, perceptron):
-        self.perceptron = perceptron
-    
-    def evaluateNetwork(self):
-        perceptron = self.perceptron
-        perceptron.hiddenActivation = perceptron.activation(perceptron.inputActivation * perceptron.hiddenWeight + perceptron.hiddenBias)
-        perceptron.outputActivation = perceptron.activation(perceptron.hiddenActivation * perceptron.outputWeight + perceptron.outputBias)
-        return perceptron.outputActivation
 
 class MultiLayerPerceptron:
     def __init__(self, nInput, nHidden, nOutput, eta = 0.08, eta_bias = 0.04, eta_L1 = 0.005):
@@ -46,9 +35,6 @@ class MultiLayerPerceptron:
         self.hiddenActivation = numpy.matrix(numpy.ones(self.nHidden)).astype(numpy.float32)
         self.outputActivation = numpy.matrix(numpy.ones(self.nOutput)).astype(numpy.float32)
 
-        self.hiddenBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nHidden)).astype(numpy.float32)
-        self.outputBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nOutput)).astype(numpy.float32)
-
         self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nInput, self.nHidden))).astype(numpy.float32)
         self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nHidden, self.nOutput))).astype(numpy.float32)
         
@@ -56,19 +42,18 @@ class MultiLayerPerceptron:
         self.deltaHidden = False
 
         self.activation = numpy.vectorize(self.activationFunction)
-        self.gradient = numpy.vectorize(self.gradientFunction)
+        self.derivative = numpy.vectorize(self.derivedActivationFunction)
 
         self.eta = eta
         self.eta_bias = eta_bias
         self.eta_L1 = eta_L1
         
         self.noiser = False
-        self.evaluationFunction = DefaultNetworkEvaluator(self)
     
     def activationFunction(self, value):
         return math.tanh(value)        
         
-    def gradientFunction(self, value):
+    def derivedActivationFunction(self, value):
         return 1.0 - math.tanh(value) ** 2
         
     def evaluateNetwork(self, inputs):
@@ -78,16 +63,16 @@ class MultiLayerPerceptron:
         for k in range(len(inputs)):
             self.inputActivation[0, k] = inputs[k]
         
-        self.inHidden = self.inputActivation * self.hiddenWeight + self.hiddenBias
+        self.inHidden = self.inputActivation * self.hiddenWeight
         self.hiddenActivation = self.activation(self.inHidden)
         
-        self.inOutput = self.hiddenActivation * self.outputWeight + self.outputBias
+        self.inOutput = self.hiddenActivation * self.outputWeight
         self.outputActivation = self.activation(self.inOutput)
         
         return self.outputActivation
         
     def runHidden(self, input):
-        self.outputActivation = self.activation(input * self.outputWeight + self.outputBias)
+        self.outputActivation = self.activation(input * self.outputWeight)
         return self.outputActivation
             
     def learn(self, inputs, target):
@@ -96,17 +81,13 @@ class MultiLayerPerceptron:
         
         self.evaluateNetwork(inputs)
         
-        self.deltaOutput = (target - self.outputActivation)
-
-        self.deltaHidden = (self.deltaOutput * self.outputWeight.T)
-        
-        self.outputBias += numpy.multiply(self.gradient(self.inOutput), self.deltaOutput) * self.eta_bias
-        self.hiddenBias += numpy.multiply(self.gradient(self.inHidden), self.deltaHidden) * self.eta_bias
+        self.deltaOutput = numpy.multiply(self.derivative(self.inOutput), (target - self.outputActivation))
+        self.deltaHidden = numpy.multiply(self.derivative(self.inHidden), (self.deltaOutput * self.outputWeight.T))
         
         L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1
         
-        self.hiddenWeight += (self.inputActivation.T * numpy.multiply(self.gradient(self.inHidden), self.deltaHidden)) * self.eta               
-        self.outputWeight += (self.hiddenActivation.T * numpy.multiply(self.gradient(self.inOutput), self.deltaOutput)) * self.eta
+        self.hiddenWeight += (self.inputActivation.T * self.deltaHidden) * self.eta               
+        self.outputWeight += (self.hiddenActivation.T * self.deltaOutput) * self.eta
         
         return numpy.sum(0.5 * numpy.power(self.outputActivation - target, 2))
 
@@ -121,24 +102,10 @@ class MultiLayerPerceptron:
                     input = self.noiser.addNoise(input)
                 error += self.learn(input, target)
             errors[epoch] = math.sqrt(error / len(classes))
-            if self.stoppingCriteria(errors):
-                break
             if epoch > 500:
                 self.eta *= 0.95
         return errors[errors > 0]
-        
-    def stoppingCriteria(self, errors):
-        stopping_count = 10
-        errs = errors[errors > 0][::-1]
-        if len(errs) > 2 * stopping_count:
-            errs_new = errs[0 : stopping_count]
-            errs_old = errs[stopping_count + 1: stopping_count * 2]
-            if (numpy.mean(errs_new) - numpy.mean(errs_old)) / numpy.mean(errs_old) > 0.0:
-                return True
-        else:
-            return False
-        return False
-    
+            
     def verifyGradient(self, input, target):
         epsilon = 0.00001
         self.evaluateNetwork(input)
@@ -185,7 +152,7 @@ class MultiLayerPerceptron:
                 
                 approx = (errorP1 - errorP2) / (epsilon * 2)
                 
-                print 'output ', approx, approx - self.gradient(self.inOutput)
+                print 'output ', approx, approx - self.deltaOutput[0, j]
                 
                 self.outputWeight = savedOutputWeight
         

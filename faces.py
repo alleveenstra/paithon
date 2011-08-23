@@ -37,7 +37,7 @@ def testImage():
 
     examples = numpy.matrix([c1, c2, c3, c4, c5, c6, c7, c8])
     
-    errors = bp.train(examples, examples, 1000)
+    errors = bp.train(examples, examples, 800)
         
     index = 1
     for image in (c1, c2, c3, c4, c5, c6, c7, c8):
