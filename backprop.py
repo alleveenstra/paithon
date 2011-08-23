@@ -10,7 +10,7 @@ import math
 
 class SaltPepperNoiser(object):
     
-    def __init__(self, amount = 0.3, salt = 0.5, pepper = -0.5):
+    def __init__(self, amount = 0.1, salt = 0.5, pepper = -0.5):
         self.amount = amount
         self.salt = salt
         self.pepper = pepper
@@ -74,33 +74,39 @@ class MultiLayerPerceptron:
     def evaluateNetwork(self, inputs):
         if len(inputs) != self.nInput - 1:
             raise ValueError('Input vector not long enough')
+        
         for k in range(len(inputs)):
             self.inputActivation[0, k] = inputs[k]
-        return self.evaluationFunction.evaluateNetwork()
+        
+        self.inHidden = self.inputActivation * self.hiddenWeight + self.hiddenBias
+        self.hiddenActivation = self.activation(self.inHidden)
+        
+        self.inOutput = self.hiddenActivation * self.outputWeight + self.outputBias
+        self.outputActivation = self.activation(self.inOutput)
+        
+        return self.outputActivation
         
     def runHidden(self, input):
         self.outputActivation = self.activation(input * self.outputWeight + self.outputBias)
         return self.outputActivation
             
-    def learn(self, target):
+    def learn(self, inputs, target):
         if len(target) != self.nOutput:
-            raise ValueError('Target vector nog long enough')
-            
-        error = (target - self.outputActivation)
-        self.gradientOutput = self.gradient(self.outputActivation)
-        self.deltaOutput = numpy.multiply(self.gradientOutput, error)
-
-        error = (self.deltaOutput * self.outputWeight.transpose())
-        self.gradientHidden = self.gradient(self.hiddenActivation)
-        self.deltaHidden = numpy.multiply(self.gradientHidden, error)
+            raise ValueError('Target vector of wrong size')
         
-        self.outputBias += self.deltaOutput * self.eta_bias
-        self.hiddenBias += self.deltaHidden * self.eta_bias
+        self.evaluateNetwork(inputs)
+        
+        self.deltaOutput = (target - self.outputActivation)
+
+        self.deltaHidden = (self.deltaOutput * self.outputWeight.T)
+        
+        self.outputBias += numpy.multiply(self.gradient(self.inOutput), self.deltaOutput) * self.eta_bias
+        self.hiddenBias += numpy.multiply(self.gradient(self.inHidden), self.deltaHidden) * self.eta_bias
         
         L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1
         
-        self.hiddenWeight += (self.inputActivation.transpose() * self.deltaHidden) * self.eta               
-        self.outputWeight += (self.hiddenActivation.transpose() * self.deltaOutput) * self.eta
+        self.hiddenWeight += (self.inputActivation.T * numpy.multiply(self.gradient(self.inHidden), self.deltaHidden)) * self.eta               
+        self.outputWeight += (self.hiddenActivation.T * numpy.multiply(self.gradient(self.inOutput), self.deltaOutput)) * self.eta
         
         return numpy.sum(0.5 * numpy.power(self.outputActivation - target, 2))
 
@@ -109,14 +115,16 @@ class MultiLayerPerceptron:
         for epoch in range(epochs):
             error = 0
             for cls in range(len(classes)):
-                target = example[cls, :].tolist()[0]
+                input = example[cls, :].tolist()[0]
+                target = classes[cls].tolist()[0]
                 if self.noiser:
-                    target = self.noiser.addNoise(target)
-                self.evaluateNetwork(target)
-                error += self.learn(classes[cls].tolist()[0])
+                    input = self.noiser.addNoise(input)
+                error += self.learn(input, target)
             errors[epoch] = math.sqrt(error / len(classes))
             if self.stoppingCriteria(errors):
                 break
+            if epoch > 500:
+                self.eta *= 0.95
         return errors[errors > 0]
         
     def stoppingCriteria(self, errors):
@@ -134,7 +142,7 @@ class MultiLayerPerceptron:
     def verifyGradient(self, input, target):
         epsilon = 0.00001
         self.evaluateNetwork(input)
-        self.learn(target)
+        self.learn(input, target)
         savedHiddenWeight = numpy.copy(self.hiddenWeight)
         savedOutputWeight = numpy.copy(self.outputWeight)
         #for i in range(self.nInput):
@@ -177,7 +185,7 @@ class MultiLayerPerceptron:
                 
                 approx = (errorP1 - errorP2) / (epsilon * 2)
                 
-                print 'output ', approx, self.deltaOutput[0, j], approx - self.deltaOutput[0, j]
+                print 'output ', approx, approx - self.gradient(self.inOutput)
                 
                 self.outputWeight = savedOutputWeight
         

@@ -23,7 +23,7 @@ def showImages(before, after, n_images = 1, n_image = 1):
         plt.show()
 
 def testImage():
-    bp = backprop.MultiLayerPerceptron(64 * 64, 4, 64 * 64, 0.08)
+    bp = backprop.MultiLayerPerceptron(64 * 64, 6, 64 * 64, 0.08)
     bp.noiser = backprop.SaltPepperNoiser()
     
     c1 = readImage('lfwcrop_grey/faces/Alejandro_Toledo_0003.pgm')
@@ -37,7 +37,7 @@ def testImage():
 
     examples = numpy.matrix([c1, c2, c3, c4, c5, c6, c7, c8])
     
-    errors = bp.train(examples, examples, 400)
+    errors = bp.train(examples, examples, 1000)
         
     index = 1
     for image in (c1, c2, c3, c4, c5, c6, c7, c8):
