@@ -39,9 +39,10 @@ class MultiLayerPerceptron:
     
     def activationFunction(self, value):
         return math.tanh(value)        
-        
+
     def derivedActivationFunction(self, value):
-        return 1.0 - math.tanh(value) ** 2
+        # The derived activation function is actually 1 - tanh^2(x)
+        return 1.0 - value ** 2
         
     def evaluateNetwork(self, inputs):
         if len(inputs) != self.nInput:
@@ -50,11 +51,8 @@ class MultiLayerPerceptron:
         for k in range(len(inputs)):
             self.inputActivation[0, k] = inputs[k]
         
-        self.inHidden = self.inputActivation * self.hiddenWeight + self.hiddenBias
-        self.hiddenActivation = self.activation(self.inHidden)
-        
-        self.inOutput = self.hiddenActivation * self.outputWeight + self.outputBias
-        self.outputActivation = self.activation(self.inOutput)
+        self.hiddenActivation = self.activation(self.inputActivation * self.hiddenWeight + self.hiddenBias)
+        self.outputActivation = self.activation(self.hiddenActivation * self.outputWeight + self.outputBias)
         
         return self.outputActivation
         
@@ -68,8 +66,8 @@ class MultiLayerPerceptron:
         
         self.evaluateNetwork(inputs)
         
-        self.deltaOutput = numpy.multiply(self.derivative(self.inOutput), (target - self.outputActivation))
-        self.deltaHidden = numpy.multiply(self.derivative(self.inHidden), (self.deltaOutput * self.outputWeight.T))
+        self.deltaOutput = numpy.multiply(self.derivative(self.outputActivation), (target - self.outputActivation))
+        self.deltaHidden = numpy.multiply(self.derivative(self.hiddenActivation), (self.deltaOutput * self.outputWeight.T))
 
         self.outputBias += self.deltaOutput * self.eta_bias
         self.hiddenBias += self.deltaHidden * self.eta_bias
