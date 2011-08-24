@@ -8,22 +8,6 @@ Created on Mon Jun 27 20:41:39 2011
 import numpy
 import math
 
-class SaltPepperNoiser(object):
-    
-    def __init__(self, amount = 0.1, salt = 0.5, pepper = -0.5):
-        self.amount = amount
-        self.salt = salt
-        self.pepper = pepper
-        
-    def addNoise(self, input):
-        output = numpy.array(input)
-        half = len(output) * self.amount / 2.0
-        salt = numpy.random.randint(0, len(output) - 1, half)
-        pepper = numpy.random.randint(0, len(output) - 1, half)
-        output[salt] = self.salt
-        output[pepper] = self.pepper
-        return output
-
 class MultiLayerPerceptron:
     def __init__(self, nInput, nHidden, nOutput, eta = 0.08, eta_bias = 0.04, eta_L1 = 0.005):
         
@@ -162,6 +146,22 @@ class MultiLayerPerceptron:
                 print 'output ', approx, gradient, gradient - approx 
                 
                 self.outputWeight = savedOutputWeight
+
+class SaltPepperNoiser(object):
+    
+    def __init__(self, amount = 0.1, salt = 0.5, pepper = -0.5):
+        self.amount = amount
+        self.salt = salt
+        self.pepper = pepper
+        
+    def addNoise(self, input):
+        output = numpy.array(input)
+        half = len(output) * self.amount / 2.0
+        salt = numpy.random.randint(0, len(output) - 1, half)
+        pepper = numpy.random.randint(0, len(output) - 1, half)
+        output[salt] = self.salt
+        output[pepper] = self.pepper
+        return output
         
 bp = MultiLayerPerceptron(2, 4, 1, 0.1, 0, 0)
 examples = numpy.matrix(numpy.random.uniform(-1, 1, (4, 2))).astype(numpy.float32)
