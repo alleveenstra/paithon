@@ -96,6 +96,7 @@ class MultiLayerPerceptron:
             
     def verifyGradient(self, input, target):
         epsilon = 0.0001
+        sum = 0
         self.learn(input, target)
         savedHiddenWeight = numpy.copy(self.hiddenWeight)
         savedOutputWeight = numpy.copy(self.outputWeight)
@@ -109,16 +110,16 @@ class MultiLayerPerceptron:
                 
                 self.hiddenWeight = positive
                 output = self.evaluateNetwork(input)
-                errorP1 = numpy.sqrt(numpy.sum((output - target) ** 2))
+                errorP1 = 0.5 * (numpy.sum((output - target) ** 2))
                 
                 self.hiddenWeight = negative
                 output = self.evaluateNetwork(input)
-                errorP2 = numpy.sqrt(numpy.sum((output - target) ** 2))
+                errorP2 = 0.5 * (numpy.sum((output - target) ** 2))
                 
                 approx = (errorP1 - errorP2) / (epsilon * 2)
                 gradient = -(self.inputActivation[0, i] * self.deltaHidden[0, j])
                 
-                print 'hidden ', approx, gradient, gradient - approx
+                sum += numpy.abs(gradient - approx)
                 
                 self.hiddenWeight = savedHiddenWeight
         
@@ -141,9 +142,10 @@ class MultiLayerPerceptron:
                 approx = (errorP1 - errorP2) / (epsilon * 2)
                 gradient = -(self.hiddenActivation[0, i] * self.deltaOutput[0, j])
                 
-                print 'output ', approx, gradient, gradient - approx 
+                sum += numpy.abs(gradient - approx)
                 
                 self.outputWeight = savedOutputWeight
+        return sum / (self.nInput + self.nHidden * 2 + self.nOutput)
 
 class SaltPepperNoiser(object):
     
@@ -160,10 +162,3 @@ class SaltPepperNoiser(object):
         output[salt] = self.salt
         output[pepper] = self.pepper
         return output
-        
-bp = MultiLayerPerceptron(2, 4, 1, 0.1, 0, 0)
-examples = numpy.matrix(numpy.random.uniform(-1, 1, (4, 2))).astype(numpy.float32)
-classes = numpy.matrix(numpy.random.uniform(-1, 1, (4, 1))).astype(numpy.float32)
-errors = bp.train(examples, classes, 1000)
-bp.verifyGradient(examples[0, :].tolist()[0], classes[0, :].tolist()[0])
-print errors[-1]
