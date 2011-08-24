@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun 27 20:41:39 2011
 
-@author: alle.veenstra@gmail.com
+  paithon machine learning framework
+
+  Multi-layer perceptron
+
+  @author: alle.veenstra@gmail.com
+
 """
 
 import numpy
