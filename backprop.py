@@ -35,6 +35,9 @@ class MultiLayerPerceptron:
         self.hiddenActivation = numpy.matrix(numpy.ones(self.nHidden)).astype(numpy.float32)
         self.outputActivation = numpy.matrix(numpy.ones(self.nOutput)).astype(numpy.float32)
 
+        self.hiddenBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nHidden)).astype(numpy.float32)
+        self.outputBias = numpy.matrix(numpy.random.normal(0, 0.5, self.nOutput)).astype(numpy.float32)
+
         self.hiddenWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nInput, self.nHidden))).astype(numpy.float32)
         self.outputWeight = numpy.matrix(numpy.random.normal(0, 0.5, (self.nHidden, self.nOutput))).astype(numpy.float32)
         
@@ -63,10 +66,10 @@ class MultiLayerPerceptron:
         for k in range(len(inputs)):
             self.inputActivation[0, k] = inputs[k]
         
-        self.inHidden = self.inputActivation * self.hiddenWeight
+        self.inHidden = self.inputActivation * self.hiddenWeight + self.hiddenBias
         self.hiddenActivation = self.activation(self.inHidden)
         
-        self.inOutput = self.hiddenActivation * self.outputWeight
+        self.inOutput = self.hiddenActivation * self.outputWeight + self.outputBias
         self.outputActivation = self.activation(self.inOutput)
         
         return self.outputActivation
@@ -83,6 +86,9 @@ class MultiLayerPerceptron:
         
         self.deltaOutput = numpy.multiply(self.derivative(self.inOutput), (target - self.outputActivation))
         self.deltaHidden = numpy.multiply(self.derivative(self.inHidden), (self.deltaOutput * self.outputWeight.T))
+
+        self.outputBias += self.deltaOutput * self.eta_bias
+        self.hiddenBias += self.deltaHidden * self.eta_bias
         
         L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1
         
