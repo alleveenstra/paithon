@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """
+   _____                   
+  /  _  \  ** paithon machine learning framework **
+ /  / \  \ 
+/ ,,\  \  \
+\___/  /  / @author: alle.veenstra@gmail.com
+  s    \/
 
-  paithon machine learning framework
-
-  Multi-layer perceptron
-
-  @author: alle.veenstra@gmail.com
+Multi-layer perceptron
 
 """
 
@@ -78,7 +80,7 @@ class MultiLayerPerceptron:
         
         L1 = numpy.sign(self.hiddenActivation) * -self.eta_L1
         
-        self.hiddenWeight += (self.inputActivation.T * self.deltaHidden) * self.eta               
+        self.hiddenWeight += (self.inputActivation.T * (self.deltaHidden + L1)) * self.eta               
         self.outputWeight += (self.hiddenActivation.T * self.deltaOutput) * self.eta
         
         return numpy.sum(0.5 * numpy.power(self.outputActivation - target, 2))
