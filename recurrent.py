@@ -14,15 +14,20 @@ Elman-style recurrent network
 import numpy
 import feedforward
 
-class RecurrentNetwork(FeedForwardNetwork):
+class RecurrentNetwork(feedforward.FeedForwardNetwork):
     def __init__(self, inputSize, hiddenShape = [], outputSize = 1):
-        super(RecurrentNetwork, self).__init__(inputSize, hiddenShape, outputSize)
+        feedforward.FeedForwardNetwork.__init__(self, inputSize, hiddenShape, outputSize)
         
-        self.history = {}
+        self.historyActivation = {}
+        self.historyWeights = {}
+        self.historyDeltas = {}
         
         for i in range(self.hiddenSize):
             if i == 0:
                 prevLayerSize = self.inputSize
             else:
                 prevLayerSize = self.hiddenShape[i - 1]
-            self.history[i + 1] = (numpy.matrix(numpy.zeros(layerSize)).astype(numpy.float32))
+            layerSize = self.hiddenShape[i]
+            self.historyActivation[i + 1] = (numpy.matrix(numpy.zeros(layerSize)).astype(numpy.float32))
+            self.historyWeights[i + 1] = (numpy.matrix(numpy.random.normal(0, 0.5, (layerSize, layerSize))).astype(numpy.float32))
+
