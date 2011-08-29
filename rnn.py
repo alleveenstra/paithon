@@ -83,15 +83,14 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
             else:
                 network.deltas[layer] = numpy.multiply(self.derivative(network.activations[layer]),
                                                        (network.deltas[layer + 1] * network.weights[layer + 1].T))
-                print (network.deltas[layer] * network.weights[layer].T).shape
-                print self.derivative(network.historyActivation[layer]).shape
-                
-                #network.historyDeltas[layer] = numpy.multiply(self.derivative(network.historyActivation[layer]),
-                #                                       (network.deltas[layer] * network.weights[layer].T))
+
+                network.historyDeltas[layer] = numpy.multiply(self.derivative(network.historyActivation[layer]),
+                                                       (network.deltas[layer] * network.historyWeights[layer].T))
     
     def updateWeights(self, network):
         for layer in range(1, network.nLayers):
             update = (network.activations[layer - 1].T * network.deltas[layer])
+
             network.weights[layer] += update
             if layer < network.nLayers - 1:
-                network.historyWeights += (network.historyActivation[layer].T * network.historyDeltas[layer])
+                network.historyWeights[layer] += (network.historyActivation[layer].T * network.historyDeltas[layer])
