@@ -50,16 +50,20 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
             if layer < network.nLayers - 1:
                 network.activations[layer] += self.activation(network.historyActivation[layer] * 
                                                               network.historyWeights[layer])
-                network.historyActivation[layer] = network.activations[layer]
     
     def train(self, example, classes, epochs):
         errors = numpy.zeros(epochs) - 1.0
         for epoch in range(epochs):
             error = 0
             for cls in range(len(classes)):
-                input = example[cls, :].tolist()[0]
-                target = classes[cls].tolist()[0]
-                error += self.feedBackward(input, target)
+                input = numpy.matrix(example[cls]).astype(numpy.float32)
+                target = numpy.matrix(classes[cls]).astype(numpy.float32)
+                
+                # iterate over the sequence
+                for seq in range(input.shape[1]):
+                    error += self.feedBackward(input[:, seq], target[:, seq])
+                    self.copyHistory()
+                self.network.reset()
             errors[epoch] = math.sqrt(error / len(classes))
         return errors[errors > 0]
     
@@ -94,3 +98,8 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
             network.weights[layer] += update
             if layer < network.nLayers - 1:
                 network.historyWeights[layer] += (network.historyActivation[layer].T * network.historyDeltas[layer])
+                
+    def copyHistory(self):
+        network = self.network
+        for layer in range(1, network.nLayers - 1):
+            network.historyActivation[layer] = numpy.copy(network.activations[layer])
