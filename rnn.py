@@ -29,6 +29,13 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
         # The derived activation function is actually 1 - tanh^2(x)
         return 1.0 - value ** 2
     
+    def evaluateSerie(self, serie):
+        out = []
+        for item in range(len(serie)):
+            input = numpy.matrix(serie[item]).astype(numpy.float32)
+            out.append(self.evaluate(input)[0, 0])
+        return out
+    
     def evaluate(self, inputs):
         network = self.network
         
@@ -37,7 +44,7 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
         
         # copy the input into the input network activation
         for k in range(len(inputs)):
-                    network.activations[0][0, k] = inputs[k]
+            network.activations[0][0, k] = inputs[k]
         
         self.feedForward(network)
         
@@ -45,11 +52,14 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
     
     def feedForward(self, network):
         for layer in range(1, network.nLayers):
-            network.activations[layer] = self.activation(network.activations[layer - 1] * 
-                                                         network.weights[layer])
             if layer < network.nLayers - 1:
-                network.activations[layer] += self.activation(network.historyActivation[layer] * 
-                                                              network.historyWeights[layer])
+                network.activations[layer] = self.activation(network.historyActivation[layer] * 
+                                                             network.historyWeights[layer] + 
+                                                             network.activations[layer - 1] * 
+                                                             network.weights[layer])
+            else:
+                network.activations[layer] = self.activation(network.activations[layer - 1] * 
+                                                             network.weights[layer])
     
     def train(self, example, classes, epochs):
         errors = numpy.zeros(epochs) - 1.0
@@ -89,12 +99,11 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
                                                        (network.deltas[layer + 1] * network.weights[layer + 1].T))
 
                 network.historyDeltas[layer] = numpy.multiply(self.derivative(network.historyActivation[layer]),
-                                                       (network.deltas[layer] * network.historyWeights[layer].T))
-    
+                                                       (network.deltas[layer]))
+                
     def updateWeights(self, network):
         for layer in range(1, network.nLayers):
             update = (network.activations[layer - 1].T * network.deltas[layer])
-
             network.weights[layer] += update
             if layer < network.nLayers - 1:
                 network.historyWeights[layer] += (network.historyActivation[layer].T * network.historyDeltas[layer])
