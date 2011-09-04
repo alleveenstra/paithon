@@ -162,8 +162,8 @@ def plot_vector(errors, n):
 factor = 8.0
 input = numpy.matrix(range(200)).astype(numpy.float32) / factor
 
-input_sin = (numpy.sin(input) * 0.5).tolist()
-output_sin = (numpy.sin(input + 0.1 * 3.14) * 0.5).tolist()
+input_sin = ((numpy.sin(input)) * 0.5).tolist()
+output_sin = ((numpy.sin(input * 2)) * 0.5).tolist()
 
 network = RecurrentNetwork(1, [8], 1)
 trainer = RecurrentTrainer(network)
@@ -171,6 +171,7 @@ examples = input_sin
 classes = output_sin
 errors = trainer.train(examples, classes, 100)
 x = trainer.evaluateSerie(input_sin[0])
+trainer.eta = 0.08
 plot_vector(errors, 1)
 plot_vector(input_sin[0], 2)
 plot_vector(output_sin[0], 3)
