@@ -106,13 +106,16 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
         errors = numpy.zeros(epochs) - 1.0
         for epoch in range(epochs):
             error = 0
-            for cls in range(len(classes)):
-                input = numpy.matrix(example[cls]).astype(numpy.float32)
-                target = numpy.matrix(classes[cls]).astype(numpy.float32)
+            keys = example.keys()
+            numpy.random.shuffle(keys)
+            for item in keys:
+                input = numpy.matrix(example[item]).astype(numpy.float32)
+                target = numpy.matrix(classes[item]).astype(numpy.float32).T
                 
                 # iterate over the sequence
                 for seq in range(input.shape[1]):
-                    error += self.feedBackward(input[:, seq], target[:, seq])
+                    error += self.feedBackward(input[:, seq], target[:, seq].T)
+                print self.network.activations[self.network.nLayers - 1]
                 self.network.reset()
             errors[epoch] = math.sqrt(error / len(classes))
         return errors[errors > 0]
@@ -120,7 +123,7 @@ class RecurrentTrainer(backprop.BackpropagationTrainer):
     def feedBackward(self, inputs, target):
         network = self.network
         
-        if len(target) != network.outputSize:
+        if target.shape[1] != network.outputSize:
             raise ValueError('Target vector of incorrect size')
         
         self.evaluate(inputs)
@@ -159,20 +162,21 @@ def plot_vector(errors, n):
     if n == 4:
         plt.show()
     
-factor = 8.0
-input = numpy.matrix(range(200)).astype(numpy.float32) / factor
-
-input_sin = ((numpy.sin(input)) * 0.5).tolist()
-output_sin = ((numpy.sin(input * 2)) * 0.5).tolist()
-
-network = RecurrentNetwork(1, [8], 1)
-trainer = RecurrentTrainer(network)
-examples = input_sin
-classes = output_sin
-errors = trainer.train(examples, classes, 100)
-x = trainer.evaluateSerie(input_sin[0])
-trainer.eta = 0.08
-plot_vector(errors, 1)
-plot_vector(input_sin[0], 2)
-plot_vector(output_sin[0], 3)
-plot_vector(x, 4)
+if __name__ == '__main__':
+    factor = 8.0
+    input = numpy.matrix(range(200)).astype(numpy.float32) / factor
+    
+    input_sin = ((numpy.sin(input)) * 0.5).tolist()
+    output_sin = ((numpy.sin(input * 2)) * 0.5).tolist()
+    
+    network = RecurrentNetwork(1, [8], 1)
+    trainer = RecurrentTrainer(network)
+    examples = input_sin
+    classes = output_sin
+    errors = trainer.train(examples, classes, 100)
+    x = trainer.evaluateSerie(input_sin[0])
+    trainer.eta = 0.08
+    plot_vector(errors, 1)
+    plot_vector(input_sin[0], 2)
+    plot_vector(output_sin[0], 3)
+    plot_vector(x, 4)
