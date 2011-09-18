@@ -1,4 +1,5 @@
 import scipy.io
+from scipy import stats
 import matplotlib.pyplot as plt
 import numpy
 from pybrain.structure import *
@@ -84,7 +85,7 @@ nClasses = 18
 
 def append2DS(DS, cochleo, cls, nClasses):
     DS.newSequence()
-    out = numpy.zeros(nClasses) - 1
+    out = numpy.zeros(nClasses)
     out[cls] = 1
     out = out.tolist()
     for i in range(cochleo.shape[1]):
@@ -99,38 +100,49 @@ for id in training_set:
 
 # fnn = buildNetwork(1, 15, 5, hiddenclass = LSTMLayer, outclass = SoftmaxLayer, outputbias = False, recurrent = True)
 
-fnn = buildNetwork(100, 18, nClasses, hiddenclass = LSTMLayer, outclass = TanhLayer, outputbias = False, recurrent = True)
+fnn = buildNetwork(100, 18, nClasses, hiddenclass = LSTMLayer, outclass = SoftmaxLayer, outputbias = False, recurrent = True)
 
 # Create a trainer for backprop and train the net.
 #trainer = BackpropTrainer(fnn, DStrain, learningrate = 0.005)
 
 trainer = RPropMinusTrainer(fnn, dataset = DS, verbose = True)
         
-for i in range(5):
+for i in range(3):
     # train the network for 1 epoch
     trainer.trainEpochs(1)
     print trainer.train()
     
 total = 0.0
-correct = 0.0
+correct_mode = 0.0
+correct_mean = 0
 for id in training_set:
     cls = which_class(id)
     data = load_cochleogram(id)
     fnn.reset()
+    classifications_list = []
     summed = numpy.zeros(nClasses)
     for i in range(data.shape[1]):
-        summed += fnn.activate(data[:, i].T.tolist()[0])
+        output = fnn.activate(data[:, i].T.tolist()[0])
+        summed += output 
+        classifications_list.append(numpy.argmax(output))
     result = summed / data.shape[1]
-    print cls, numpy.argmax(result)
+    sample_mode = stats.mode(classifications_list)[0][0]
+    sample_mean = numpy.argmax(result)
+    print cls, sample_mode
     total += 1
-    if cls == numpy.argmax(result):
-        correct += 1
+    if cls == sample_mean:
+        correct_mean += 1
+    if cls == sample_mode:
+        correct_mode += 1
 
-print correct / total * 100.0, ' percent correct!'
+print correct_mode / total * 100.0, ' percent correct! (statistical mode)'
+print correct_mean / total * 100.0, ' percent correct! (statistical mean)'
 
-fileNet = open('network.pkl', 'wb')
-fileTrainer = open('trainer.pkl', 'wb')
-pickle.dump(fnn, fileNet)
-pickle.dump(trainer, fileTrainer)
-fileNet.close()
-fileTrainer.close()
+#fileNet = open('network.pkl', 'wb')
+#fileTrainer = open('trainer.pkl', 'wb')
+#pickle.dump(fnn, fileNet)
+#pickle.dump(trainer, fileTrainer)
+#fileNet.close()
+#fileTrainer.close()
+#
+#print 'everything quite dandy'
