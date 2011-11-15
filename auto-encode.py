@@ -1,7 +1,25 @@
-import pickle
 import scipy.io
-import numpy
+from scipy import stats
 import matplotlib.pyplot as plt
+import scipy.misc.pilutil as pilutil
+import numpy
+from pybrain.structure import *
+from pybrain.datasets import *
+from pybrain.tools.shortcuts     import buildNetwork
+from pybrain.structure.modules   import SoftmaxLayer, LSTMLayer
+from pybrain.supervised.trainers import BackpropTrainer, RPropMinusTrainer
+from pybrain.utilities           import percentError
+import scipy.io.wavfile as wavfile
+import pickle
+import random
+import sys
+
+nHidden = int(sys.argv[1])
+nEpoch = int(sys.argv[2])
+segments = 100
+nClasses = 8
+
+print 'Running with %d segments, %d hidden units and for %d epochs' % (segments, nHidden, nEpoch)
 
 talking_train = [86384, 45639, 62445, 86465, 60567, 45115, 60566, 86452, 86385, 62948, 86451, 86459, 45638, 86478, 86457, 86476, 59772, 86463, 86456, 45118]
 sax_train = [665, 761, 673, 1236, 659, 72469, 734, 731, 667, 767, 736, 44639, 44635, 769, 44631, 764, 733, 735, 762, 677]
@@ -47,16 +65,86 @@ bell = bell_train + bell_test + bell_validation
 
 everything = talking + sax + piano + footsteps + dog + car + bird + bell
 
-def write(filename, data):
-    output = open(filename, 'wb')
-    pickle.dump(data, output)
-    output.close()
+random.shuffle(train_set)
 
-for id in everything:
-    file = "data-8/matfiles/c120-%i.wav.mat" % id
-    mat = scipy.io.loadmat(file)
-    cochleogram = numpy.matrix(mat['D'][0, 0][2]).astype(numpy.float32)
-    textures = numpy.matrix(mat['D'][0, 0][8]).astype(numpy.float32)
-    print 'Writing %i..' % id
-    write('data-8/pickle/cochleogram_120_%i.pkl' % id, cochleogram)
-    write('data-8/pickle/textures_120_%i.pkl' % id, textures)
+def which_class(n):
+    if n in talking:
+        return 0
+    if n in sax:
+        return 1
+    if n in piano:
+        return 2
+    if n in footsteps:
+        return 3
+    if n in dog:
+        return 4
+    if n in car:
+        return 5
+    if n in bird:
+        return 6
+    if n in bell:
+        return 7
+    
+def plot_vector(x):
+    plt.plot(range(len(x)), x)
+    plt.show()
+    
+def resampleMatrix(input, factor):
+    new_x = int(input.shape[0] / factor)
+    output = numpy.zeros((new_x, input.shape[1]))
+    for x in range(new_x):
+        x_start = x * factor
+        x_end = (x + 1) * factor
+        output[x, :] = numpy.mean(input[x_start : x_end, :], 0)
+    return output
+
+def load_cochleogram(id):
+    file = 'data-8/pickle/cochleogram_%i.pkl' % id
+    coch = pickle.load(open(file))
+    return coch
+
+def append2DS(DS, cochleo):
+    DS.newSequence()
+    nFrames = cochleo.shape[1]
+    for i in range(nFrames - 1):
+        DS.appendLinked(cochleo[:, i].T.tolist()[0], cochleo[:, i + 1].T.tolist()[0])
+
+DS = SequentialDataSet(segments, segments)
+    
+for id in train_set:
+    cls = which_class(id)
+    data = load_cochleogram(id)
+    append2DS(DS, data)
+
+fnn = buildNetwork(segments, nHidden, segments, hiddenclass = LSTMLayer, outclass = SoftmaxLayer, outputbias = True, recurrent = True, peepholes = True)
+
+trainer = RPropMinusTrainer(fnn, dataset = DS, verbose = True)
+
+print 'Begin training...'
+        
+# train the network
+for i in range(nEpoch):
+    trainer.trainEpochs(1)
+    print trainer.train()
+
+# evaluate on the test set
+def extractActivation():
+    for id in test_set:
+        cls = which_class(id)
+        data = load_cochleogram(id, factor)
+        fnn.reset()
+        classifications_list = []
+        summed = numpy.zeros(nClasses)
+        for i in range(data.shape[1]):
+            output = fnn.activate(data[:, i].T.tolist()[0])
+            summed += output
+            classifications_list.append(numpy.argmax(output))
+        result = summed / data.shape[1]
+        sample_mode = stats.mode(classifications_list)[0][0]
+        sample_mean = numpy.argmax(result)
+        total += 1
+        print 'class: ', cls, ' recognition: ', sample_mean
+        if cls == sample_mean:
+            correct_mean += 1
+        if cls == sample_mode:
+            correct_mode += 1

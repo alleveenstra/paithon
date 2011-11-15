@@ -1,6 +1,7 @@
 import scipy.io
 from scipy import stats
 import matplotlib.pyplot as plt
+import scipy.misc.pilutil as pilutil
 import numpy
 from pybrain.structure import *
 from pybrain.datasets import *
@@ -11,6 +12,14 @@ from pybrain.utilities           import percentError
 import scipy.io.wavfile as wavfile
 import pickle
 import random
+import sys
+
+nHidden = int(sys.argv[1])
+nEpoch = int(sys.argv[2])
+segments = 100
+nClasses = 8
+
+print 'Running with %d segments, %d hidden units and for %d epochs' % (segments, nHidden, nEpoch)
 
 talking_train = [86384, 45639, 62445, 86465, 60567, 45115, 60566, 86452, 86385, 62948, 86451, 86459, 45638, 86478, 86457, 86476, 59772, 86463, 86456, 45118]
 sax_train = [665, 761, 673, 1236, 659, 72469, 734, 731, 667, 767, 736, 44639, 44635, 769, 44631, 764, 733, 735, 762, 677]
@@ -56,6 +65,8 @@ bell = bell_train + bell_test + bell_validation
 
 everything = talking + sax + piano + footsteps + dog + car + bird + bell
 
+random.shuffle(train_set)
+
 def which_class(n):
     if n in talking:
         return 0
@@ -77,13 +88,20 @@ def which_class(n):
 def plot_vector(x):
     plt.plot(range(len(x)), x)
     plt.show()
+    
+def resampleMatrix(input, factor):
+    new_x = int(input.shape[0] / factor)
+    output = numpy.zeros((new_x, input.shape[1]))
+    for x in range(new_x):
+        x_start = x * factor
+        x_end = (x + 1) * factor
+        output[x, :] = numpy.mean(input[x_start : x_end, :], 0)
+    return output
 
-def load_cochleogram(id):
+def load_cochleogram(id, factor):
     file = 'data-8/pickle/cochleogram_%i.pkl' % id
     coch = pickle.load(open(file))
     return coch
-
-nClasses = 8
 
 def append2DS(DS, cochleo, cls, nClasses):
     DS.newSequence()
@@ -93,27 +111,31 @@ def append2DS(DS, cochleo, cls, nClasses):
     for i in range(cochleo.shape[1]):
         DS.appendLinked(cochleo[:, i].T.tolist()[0], out)
 
-DS = SequentialDataSet(100, nClasses)
+DS = SequentialDataSet(segments, nClasses)
     
 for id in train_set:
     cls = which_class(id)
-    data = load_cochleogram(id)
+    data = load_cochleogram(id, factor)
     append2DS(DS, data, cls, nClasses)
 
-fnn = buildNetwork(100, 18, nClasses, hiddenclass = LSTMLayer, outclass = SoftmaxLayer, outputbias = False, recurrent = True)
+fnn = buildNetwork(segments, nHidden, nClasses, hiddenclass = LSTMLayer, outclass = SoftmaxLayer, outputbias = False, recurrent = True)
 
 trainer = RPropMinusTrainer(fnn, dataset = DS, verbose = True)
+
+print 'Begin training...'
         
-for i in range(1):
+# train the network
+for i in range(nEpoch):
     trainer.trainEpochs(1)
     print trainer.train()
-    
+
+# evaluate on the test set
 total = 0.0
 correct_mode = 0.0
 correct_mean = 0
 for id in test_set:
     cls = which_class(id)
-    data = load_cochleogram(id)
+    data = load_cochleogram(id, factor)
     fnn.reset()
     classifications_list = []
     summed = numpy.zeros(nClasses)
@@ -124,8 +146,8 @@ for id in test_set:
     result = summed / data.shape[1]
     sample_mode = stats.mode(classifications_list)[0][0]
     sample_mean = numpy.argmax(result)
-    print cls, sample_mode
     total += 1
+    print 'class: ', cls, ' recognition: ', sample_mean
     if cls == sample_mean:
         correct_mean += 1
     if cls == sample_mode:
@@ -133,12 +155,3 @@ for id in test_set:
 
 print correct_mode / total * 100.0, ' percent correct! (statistical mode)'
 print correct_mean / total * 100.0, ' percent correct! (statistical mean)'
-
-#fileNet = open('network.pkl', 'wb')
-#fileTrainer = open('trainer.pkl', 'wb')
-#pickle.dump(fnn, fileNet)
-#pickle.dump(trainer, fileTrainer)
-#fileNet.close()
-#fileTrainer.close()
-#
-#print 'everything quite dandy'
