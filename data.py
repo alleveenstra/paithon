@@ -1,42 +1,8 @@
-import scipy.io
-from scipy import stats
-import matplotlib.pyplot as plt
-import scipy.misc.pilutil as pilutil
-import numpy
-from pybrain.structure import *
-from pybrain.datasets import *
-from pybrain.tools.shortcuts     import buildNetwork
-from pybrain.structure.modules   import SoftmaxLayer, LSTMLayer
-from pybrain.supervised.trainers import BackpropTrainer, RPropMinusTrainer
-from pybrain.utilities           import percentError
-import scipy.io.wavfile as wavfile
+# -
+
 import cPickle as pickle
 import random
-import sys
-
-nHidden = int(sys.argv[1])
-nEpoch = int(sys.argv[2])
-inputs = int(sys.argv[3])
-encoderFile = sys.argv[4]
-nClasses = 8
-
-file = open(encoderFile, 'r')
-encoderLoaded = pickle.load(file)
-file.close()
-encoderLoaded.sorted = False
-encoderLoaded.sortModules()
-encoderLoaded.reset()
-
-encoder = RecurrentNetwork()
-encoder.addInputModule(LinearLayer(100, name = 'in'))
-encoder.addModule(encoderLoaded['hidden0'])
-encoder.addOutputModule(LinearLayer(inputs, name = 'out'))
-encoder.addConnection(FullConnection(encoder['in'], encoder['hidden0'], name = 'c1'))
-encoder.addConnection(FullConnection(encoder['hidden0'], encoder['out'], name = 'c2'))
-encoder.addRecurrentConnection(FullConnection(encoder['hidden0'], encoder['hidden0'], name = 'c3'))
-encoder.sortModules()
-
-print 'Running with %s, %d inputs, %d hidden units and for %d epochs' % (encoderFile, inputs, nHidden, nEpoch)
+import numpy
 
 talking_train = [86384, 45639, 62445, 86465, 60567, 45115, 60566, 86452, 86385, 62948, 86451, 86459, 45638, 86478, 86457, 86476, 59772, 86463, 86456, 45118]
 sax_train = [665, 761, 673, 1236, 659, 72469, 734, 731, 667, 767, 736, 44639, 44635, 769, 44631, 764, 733, 735, 762, 677]
@@ -102,70 +68,10 @@ def which_class(n):
     if n in bell:
         return 7
     
-def plot_vector(x):
-    plt.plot(range(len(x)), x)
-    plt.show()
-
 def load_cochleogram(id):
     file = 'data-8/pickle/cochleogram_%i.pkl' % id
     coch = pickle.load(open(file))
+    coch = coch - numpy.mean(coch)
+    coch = coch / numpy.std(coch) * 0.3
     return coch
-
-def append2DS(DS, cochleo, cls, nClasses):
-    DS.newSequence()
-    encoder.reset()
-    out = numpy.zeros(nClasses)
-    out[cls] = 1
-    out = out.tolist()
-    for i in range(cochleo.shape[1]):
-        sample = cochleo[:, i].T
-        encoded = encoder.activate(sample)
-        DS.appendLinked(encoded, out)
-
-DS = SequentialDataSet(inputs, nClasses)
     
-for id in train_set:
-    cls = which_class(id)
-    data = load_cochleogram(id)
-    append2DS(DS, data, cls, nClasses)
-
-fnn = buildNetwork(inputs, nHidden, nClasses, hiddenclass = LSTMLayer, outclass = SoftmaxLayer, outputbias = False, recurrent = True)
-
-trainer = RPropMinusTrainer(fnn, dataset = DS, verbose = True)
-
-print 'Begin training...'
-        
-# train the network
-for i in range(nEpoch):
-    trainer.trainEpochs(1)
-    print trainer.train()
-
-# evaluate on the test set
-total = 0.0
-correct_mode = 0.0
-correct_mean = 0
-for id in test_set:
-    cls = which_class(id)
-    data = load_cochleogram(id)
-    fnn.reset()
-    classifications_list = []
-    summed = numpy.zeros(nClasses)
-    encoder.reset()
-    for i in range(data.shape[1]):
-        sample = data[:, i].T.tolist()[0]
-        encoded = encoder.activate(sample)
-        output = fnn.activate(encoded)
-        summed += output 
-        classifications_list.append(numpy.argmax(output))
-    result = summed / data.shape[1]
-    sample_mode = stats.mode(classifications_list)[0][0]
-    sample_mean = numpy.argmax(result)
-    total += 1
-    print 'class: ', cls, ' recognition: ', sample_mean
-    if cls == sample_mean:
-        correct_mean += 1
-    if cls == sample_mode:
-        correct_mode += 1
-
-print correct_mode / total * 100.0, ' percent correct! (statistical mode)'
-print correct_mean / total * 100.0, ' percent correct! (statistical mean)'
